@@ -1,0 +1,442 @@
+!to "hbjf2020.prg", cbm
+
+
+; sleep macro will wait for a few vertical blanks
+!macro sleep {
+	+real_sleep
+}
+
+!macro real_sleep {
+	pha
+	txa
+	pha
+	lda #$00
+	ldx #$01
+.loop
+
+.waitvb
+	bit $d011
+	bpl .waitvb
+.waitvb2
+	bit $d011
+	bmi .waitvb2
+
+	dex
+	bne .loop
+	pla
+	tax
+	pla
+}
+
+
+!macro set .addr, .val {
+	lda .val
+	sta .addr
+}
+
+!macro set16 .addr, .val16 {
+	lda #<(.val16)
+	sta .addr
+	lda #>(.val16)
+	sta .addr+1
+}
+
+; -------------------
+;  BASIC Stub
+; -------------------
+
+*=$0801
+
+	!byte $0c,$08 ; pointer to next basic line (not sure if right)
+	!byte $9a,$02 ; line number
+	!byte $9e ; sys
+	!text " 2080" ; start of asm at $0820 (DEC 2080)
+	!byte $00,$00,$00,$00
+
+; -------------------
+;  ASM
+; -------------------
+
+*=$0820
+
+
+	jsr clrscr ; clear screen
+
+	+set foreground, .black
+	+set background, .red
+
+	; set 38 column mode
+	+set horscroll, .col38
+
+	+set $0400, .zee ; .zee=$1a='Z'
+
+	lda .zee
+	ldy #$00
+-
+	sta $0400, y
+
+	iny
+	cpy #$27
+	bne -
+
+
+
+	ldx #$00
+-
+	+sleep
+
+	stx horscroll
+	inx
+	cpx #$08
+	bne -
+	ldx #$00
+	jmp -
+
+
+
+	rts
+
+
+; -------------------
+; color-setting UFO
+; -------------------
+
+	; color vector offset
+	ldx #$00
+
+	; character map pointer
+	;
+	lda #$fc
+	sta $fb
+	lda #$03
+	sta $fc
+
+	; color map pointer
+	;
+	lda #$fc
+	sta $fd
+	lda #$d7
+	sta $fe
+
+start_ufo
+
+	; character map
+	;
+	lda #$6c
+	ldy #$04
+	sta ($fb),y
+
+	; delete ufo tail if tail adress > $0400 (display start address)
+	;
+	lda $fc
+	cmp #$03
+	beq +
+	lda #$20
+	ldy #$00
+	sta ($fb),y
++
+
+	; increment pointers
+	;
+	lda $fb
+	clc				; clear carry flag, we'll check it later
+	adc #$01
+	sta $fb		; increment lo pointer part.
+	sta $fd
+	bcc +			; if carry is set, increment hi pointer part.
+	inc $fc
+	inc $fe
++
+
+	lda #$07
+	cmp $fc
+	bne +
+	lda #$fc
+	cmp $fb
+	bne +
+
+	jmp end_ufo
++
+	jmp start_ufo
+
+end_ufo
+
+; -------------------
+; print title
+; -------------------
+;	ldx #$00
+;- lda .title,x
+;	cmp #$00
+;	beq +
+;	sta $0400,x
+;	inx
+;	jmp -
+;+
+
+; ------------------------
+;  Initial character
+; ------------------------
+
+	; character map pointer
+	;
+	lda #$ec ; 20 chars into the first line, minus one line
+	sta $fb
+	lda #$03
+	sta $fc
+
+	; counter
+	;
+	lda #$00
+	sta $fd
+
+	; loop
+	;
+initial_start
+
+	+sleep
+
+	; if not on the first line, delete previous
+	lda $fd
+	cmp #$00
+	beq +
+
+	lda #$20
+	ldy #$00
+	sta ($fb),y
++
+
+	; increment pointer by one line
+	lda $fb
+	clc
+	adc #$28
+	sta $fb
+	bcc +
+	inc $fc
++
+
+	; write initial
+	lda #$02
+	ldy #$00
+	sta ($fb),y
+
+	; check if it's over
+	inc $fd
+	lda $fd
+	cmp #$0a
+	bne initial_start
+
+
+; ---------------
+;  letters
+; ---------------
+
+	ldx #$00
+
+	; character map pointer
+	;
+	lda #<chars
+	sta $fb
+	lda #>chars
+	sta $fc
+
+
+	lda #$37
+	sta $03
+
+letter_loop
+
+	+sleep
+
+	; offset in chars
+	lda #$00
+	sta $02
+
+letters
+	; set indirect ptr in $fd/$fe
+	;
+	ldy $02
+	lda ($fb),y
+	sta $fd
+
+	inc $02
+
+	ldy $02
+	lda ($fb),y
+	sta $fe
+
+	; add offset to pointer in $fd/$fe
+	;
+	inc $02
+	ldy $02
+
+	lda $fd
+	clc
+	adc ($fb),y
+	sta $fd
+	bcc +
+	inc $fe
++
+
+	; check if the character is offscreen, too far to the right
+	;
+	lda ($fb),y
+	cmp #$10
+	bpl offscreen_char
+
+
+	; increment pointer to simulate last position
+	;
+	inc $fd
+	bcc +
+	inc $fe
++
+
+	; clear last position
+	;
+	tya
+	tax
+	ldy #00
+	lda #$20
+	sta ($fd),y
+	txa
+	tay
+
+	; restore pointer to current position
+	;
+	dec $fd
+	lda $fd
+	cmp #$ff
+	bne +
+	dec $fe
++
+
+	; check if the the character is at its final position (offset 0)
+	;
+	lda ($fb),y
+	beq char_done
+	; if it's not, decrement the offset for next time
+	tax
+	dex
+	txa
+	sta ($fb),y
+
+char_done
+
+	; load character to print
+	;
+	inc $02
+
+	ldy $02
+	lda ($fb),y
+
+	; print character at pointer $fd/$fe
+	;
+	ldy #$00
+	sta ($fd),y
+
+	jmp +
+offscreen_char
+	; we stil need to decrement the offset for offscreen chars
+	;
+	inc $02
+	lda ($fb),y
+	tax
+	dex
+	txa
+	sta ($fb),y
++
+
+	; loop for each character
+	;
+	inc $02
+	lda #$30
+	cmp $02
+	bne letters
+
+	; loop multiple times to place every letter correctly
+	;
+	dec $03
+	beq the_end
+	jmp letter_loop
+the_end
+
+; ---------------
+;  the end
+; ---------------
+	rts ; return from subroutine
+
+
+; ---------------
+;  data
+; ---------------
+
+!addr clrscr = $e544
+!addr background = $d020
+!addr foreground = $d021
+!addr horscroll = $d016
+
+; 38 columns mode for horscroll
+
+.col40 !byte $08
+.col38 !byte $00
+
+; colors
+
+.black				!byte $00
+.white				!byte $01 
+.red					!byte $02
+.blue					!byte $06
+.cyan					!byte $03
+.purple				!byte $04
+.green				!byte $05
+.yellow				!byte $07
+.orange				!byte $08
+.brown				!byte $09
+.pink					!byte $0A
+.dark_grey		!byte $0B
+.grey					!byte $0C
+.light_green	!byte $0D
+.light_blue		!byte $0E
+.light_grey		!byte $0F
+
+.zee !byte $1A
+
+; registers 
+
+.r1		!byte $fb  ; fb/fc  as 16-bits register 1
+.hi1	!byte $fb
+.lo1	!byte $fc
+
+.r2		!byte $fd  ; fd/fe  as 16-bits register 2
+.hi2	!byte $fd
+.lo2	!byte $fe
+
+; some test title
+.title !scr "38911 bytes free.", 0
+
+; color scheme
+.colors !byte $01, $0e, $06, $0e
+
+.dummy !byte $ff, $ff
+
+
+
+
+; all chars in message except initial b
+chars
+	!byte $7d, $05, $16, $0f ; o
+	!byte $7e, $05, $1c, $0e ; n
+	!byte $7f, $05, $22, $0e ; n
+	!byte $80, $05, $28, $05 ; e
+
+	!byte $a5, $05, $1c, $06 ; f
+	!byte $a6, $05, $22, $05 ; e
+	!byte $a7, $05, $28, $14 ; t
+	!byte $a8, $05, $30, $05 ; e
+
+	!byte $cd, $05, $22, $0a ; j
+	!byte $ce, $05, $28, $05 ; e
+	!byte $cf, $05, $30, $06 ; f
+	!byte $d0, $05, $36, $06 ; f
+
+; vim: ts=2 sw=2
