@@ -41,6 +41,12 @@
 	sta .addr+1
 }
 
+!macro switch_lowercase {
+	lda $d018
+	ora #$07
+	sta $d018
+}
+
 ; -------------------
 ;  BASIC Stub
 ; -------------------
@@ -65,30 +71,58 @@
 	+set foreground, .black
 	+set background, .red
 
+	; switch to lowercase mode
+	+switch_lowercase
+
 	; set 38 column mode
 	+set horscroll, .col38
 
 	;+set $0400, .zee ; .zee=$1a='Z'
 
-	lda .zee
-	ldy #$00
--
-	sta $0400, y
 
+beginning
+	+sleep
+	ldx #$07
+	stx horscroll
+
+
+
+	ldy #$00
+
+loop
+	ldx #$00
+-
+	lda .msg, y
+	cmp #$00
+	bne +
+	ldy #$00
+	jmp -
++
 	iny
-	cpy #$27
+
+	sta $0400, x
+
+	inx
+	cpx #$27
 	bne -
+
+	tya
+	sbc #$26
+	tay
 
 
 start_horscroll
+
 	ldx #$07
 -
-	+sleep
+	;+sleep
+	;+sleep
 
 	stx horscroll
 	cpx #$00
-	beq start_horscroll
+	beq loop
 	dex
+	+sleep
 	jmp -
 
 
@@ -411,7 +445,7 @@ the_end
 .lo2	!byte $fe
 
 ; some test title
-.title !scr "38911 bytes free.", 0
+.msg !scr "ceci est un test. cette STRING devrait avoir plus de 38 caracteres de long, mais moins de 256 caracteres.", 0
 
 ; color scheme
 .colors !byte $01, $0e, $06, $0e
