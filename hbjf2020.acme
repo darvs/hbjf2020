@@ -81,16 +81,20 @@
 
 
 beginning
+	;+sleep
+	;ldx #$07
+	;stx horscroll
+
+	ldy #$00
+
+
+loop
 	+sleep
 	ldx #$07
 	stx horscroll
 
-
-
-	ldy #$00
-
-loop
 	ldx #$00
+	sty .hi1
 -
 	lda .msg, y
 	cmp #$00
@@ -100,15 +104,24 @@ loop
 +
 	iny
 
-	sta $0400, x
+	;sta $0400, x
+	sta $0680, x
 
 	inx
 	cpx #$27
 	bne -
 
-	tya
-	sbc #$26
-	tay
+	;tya
+	;sbc #$26
+	;tay
+	ldy .hi1
+	iny
+	lda .msg, y
+	cmp #$00
+	bne +
+	ldy #$00
+	sty .hi1
++
 
 
 start_horscroll
@@ -445,7 +458,7 @@ the_end
 .lo2	!byte $fe
 
 ; some test title
-.msg !scr "ceci est un test. cette STRING devrait avoir plus de 38 caracteres de long, mais moins de 256 caracteres.", 0
+.msg !scr "      Ceci est un test. Ce message devrait avoir plus de 38 caracteres de long, mais moins de 256 caracteres. --- ", 0
 
 ; color scheme
 .colors !byte $01, $0e, $06, $0e
