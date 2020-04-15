@@ -68,7 +68,7 @@
 	; set 38 column mode
 	+set horscroll, .col38
 
-	+set $0400, .zee ; .zee=$1a='Z'
+	;+set $0400, .zee ; .zee=$1a='Z'
 
 	lda .zee
 	ldy #$00
@@ -80,16 +80,15 @@
 	bne -
 
 
-
-	ldx #$00
+start_horscroll
+	ldx #$07
 -
 	+sleep
 
 	stx horscroll
-	inx
-	cpx #$08
-	bne -
-	ldx #$00
+	cpx #$00
+	beq start_horscroll
+	dex
 	jmp -
 
 
