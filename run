@@ -1,2 +1,3 @@
 #!/usr/bin/env bash
-./build && x64 +confirmonexit +drivesound *.prg
+cd "$( dirname "${BASH_SOURCE[0]}" )"
+make && x64 +confirmonexit +drivesound $(pwd)/obj/*.prg

@@ -1,75 +1,11 @@
-!to "hbjf2020.prg", cbm
-
-
-; sleep macro will wait for a few vertical blanks
-!macro sleep {
-	+real_sleep
-}
-
-!macro real_sleep {
-	pha
-	txa
-	pha
-	lda #$00
-	ldx #$01
-.loop
-
-.waitvb
-	bit $d011
-	bpl .waitvb
-.waitvb2
-	bit $d011
-	bmi .waitvb2
-
-	dex
-	bne .loop
-	pla
-	tax
-	pla
-}
-
-
-!macro set .addr, .val {
-	lda .val
-	sta .addr
-}
-
-!macro setabs .addr, .val {
-	lda #.val
-	sta .addr
-}
-
-!macro set16 .addr, .val16 {
-	lda #<(.val16)
-	sta .addr
-	lda #>(.val16)
-	sta .addr+1
-}
-
-!macro switch_lowercase {
-	lda $d018
-	ora #$07
-	sta $d018
-}
-
-; -------------------
-;  BASIC Stub
-; -------------------
-
-*=$0801
-
-	!byte $0c,$08 ; pointer to next basic line (not sure if right)
-	!byte $9a,$02 ; line number
-	!byte $9e ; sys
-	!text " 2080" ; start of asm at $0820 (DEC 2080)
-	!byte $00,$00,$00,$00
+!src "macros.a"
+!src "stub.a"
 
 ; -------------------
 ;  ASM
 ; -------------------
 
 *=$0820
-
 
 	jsr clrscr ; clear screen
 
@@ -142,9 +78,6 @@ beginning
 	+setabs sprite_1_y, $84
 	+setabs sprite_2_y, $84
 	+setabs sprite_3_y, $84
-
-
-
 
 	;+sleep
 	;ldx #$07
@@ -289,38 +222,6 @@ start_horscroll
 ; color scheme
 .colors !byte $01, $0e, $06, $0e
 
-.dummy !byte $ff, $ff
+!src "sprites.a"
 
-
-; sprite 0 / multicolor / color: $02
-sprite_0
-!byte $00,$00,$00,$00,$0a,$a8,$00,$09
-!byte $58,$00,$09,$58,$00,$09,$58,$00
-!byte $0a,$5a,$00,$02,$56,$00,$02,$56
-!byte $00,$00,$96,$00,$00,$96,$00,$00
-!byte $96,$00,$00,$96,$2a,$80,$96,$25
-!byte $82,$56,$25,$82,$5a,$25,$aa,$58
-!byte $25,$69,$58,$25,$55,$58,$09,$55
-!byte $60,$02,$aa,$80,$00,$00,$00,$82
-
-; sprite 1 / multicolor / color: $02
-sprite_1
-!byte $00,$00,$00,$00,$00,$00,$00,$00
-!byte $00,$00,$00,$00,$00,$28,$00,$00
-!byte $aa,$00,$02,$96,$80,$02,$55,$80
-!byte $0a,$69,$80,$09,$a9,$80,$09,$a6
-!byte $80,$09,$96,$a0,$09,$9a,$60,$09
-!byte $5a,$60,$09,$69,$60,$09,$69,$60
-!byte $0a,$55,$a0,$02,$96,$80,$00,$aa
-!byte $00,$00,$00,$00,$00,$00,$00,$82
-
-; sprite 2 / multicolor / color: $02
-sprite_2
-!byte $00,$00,$00,$00,$a8,$00,$02,$9a
-!byte $00,$02,$56,$00,$09,$66,$00,$09
-!byte $a6,$00,$09,$8a,$00,$29,$a0,$00
-!byte $29,$68,$00,$29,$58,$00,$25,$98
-!byte $00,$25,$a0,$00,$29,$80,$00,$09
-!byte $80,$00,$09,$80,$00,$09,$80,$00
-!byte $29,$80,$00,$26,$80,$00,$2a,$80
-!byte $00,$2a,$80,$00,$00,$00,$00,$82; vim: ts=2 sw=2
+; vim: ft=acme ts=2 sw=2

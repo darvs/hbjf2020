@@ -1,0 +1,51 @@
+; sleep macro will wait for a few vertical blanks
+!macro sleep {
+	+real_sleep
+}
+
+!macro real_sleep {
+	pha
+	txa
+	pha
+	lda #$00
+	ldx #$01
+.loop
+
+.waitvb
+	bit $d011
+	bpl .waitvb
+.waitvb2
+	bit $d011
+	bmi .waitvb2
+
+	dex
+	bne .loop
+	pla
+	tax
+	pla
+}
+
+!macro set .addr, .val {
+	lda .val
+	sta .addr
+}
+
+!macro setabs .addr, .val {
+	lda #.val
+	sta .addr
+}
+
+!macro set16 .addr, .val16 {
+	lda #<(.val16)
+	sta .addr
+	lda #>(.val16)
+	sta .addr+1
+}
+
+!macro switch_lowercase {
+	lda $d018
+	ora #$07
+	sta $d018
+}
+
+; vim: ft=acme ts=2 sw=2

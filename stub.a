@@ -1,0 +1,13 @@
+; -------------------
+;  BASIC Stub
+; -------------------
+
+*=$0801
+
+	!byte $0c,$08 ; pointer to next basic line (not sure if right)
+	!byte $9a,$02 ; line number
+	!byte $9e ; sys
+	!text " 2080" ; start of asm at $0820 (DEC 2080)
+	!byte $00,$00,$00,$00
+
+; vim: ft=acme ts=2 sw=2
