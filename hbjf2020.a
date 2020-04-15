@@ -9,8 +9,8 @@
 
 	jsr clrscr ; clear screen
 
-	+set foreground, .black
-	+set background, .red
+	+setabs foreground, black
+	+setabs background, dark_grey
 
 	; switch to lowercase mode
 	+switch_lowercase
@@ -59,15 +59,15 @@ beginning
 	+setabs sprite_y_expansion, 2^0 + 2^1 + 2^2 + 2^3
 
 
-	lda #$07 ; Sprite multicolor 1
+	lda #light_grey ; Sprite multicolor 1
 	sta $d025
 	lda #$06 ; Sprite multicolor 2
 	sta $d026
 
-	+setabs sprite_col_0, $02
-	+setabs sprite_col_1, $02
-	+setabs sprite_col_2, $02
-	+setabs sprite_col_3, $02
+	+setabs sprite_col_0, dark_grey
+	+setabs sprite_col_1, dark_grey
+	+setabs sprite_col_2, dark_grey
+	+setabs sprite_col_3, dark_grey
 
 	+setabs sprite_0_x, ($64)
 	+setabs sprite_1_x, ($64 + $2b)
@@ -176,10 +176,6 @@ start_horscroll
 !addr sprite_x_expansion = $d01d
 !addr sprite_y_expansion = $d017
 
-
-
-.all_sprites !byte $ff
-
 ; 38 columns mode for horscroll
 
 .col40 !byte $08
@@ -187,22 +183,22 @@ start_horscroll
 
 ; colors
 
-.black				!byte $00
-.white				!byte $01 
-.red					!byte $02
-.blue					!byte $06
-.cyan					!byte $03
-.purple				!byte $04
-.green				!byte $05
-.yellow				!byte $07
-.orange				!byte $08
-.brown				!byte $09
-.pink					!byte $0A
-.dark_grey		!byte $0B
-.grey					!byte $0C
-.light_green	!byte $0D
-.light_blue		!byte $0E
-.light_grey		!byte $0F
+black				= $00
+white				= $01 
+red					= $02
+blue				= $06
+cyan				= $03
+purple			= $04
+green				= $05
+yellow			= $07
+orange			= $08
+brown				= $09
+pink				= $0A
+dark_grey		= $0B
+grey				= $0C
+light_green	= $0D
+light_blue	= $0E
+light_grey	= $0F
 
 .zee !byte $1A
 
