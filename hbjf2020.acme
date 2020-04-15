@@ -34,6 +34,11 @@
 	sta .addr
 }
 
+!macro setabs .addr, .val {
+	lda #.val
+	sta .addr
+}
+
 !macro set16 .addr, .val16 {
 	lda #<(.val16)
 	sta .addr
@@ -81,6 +86,64 @@
 
 
 beginning
+
+	;enable all sprites
+
+	+setabs sprite_enable, $ff
+
+
+	; copy sprite data for all sprites 
+	ldx #$00
+-
+	lda sprite_0, x
+	sta $2000 + 64 * 0, x
+	lda sprite_1, x
+	sta $2000 + 64 * 1, x
+	lda sprite_2, x
+	sta $2000 + 64 * 2, x
+	inx
+	cpx #$41
+	bne -
+
+	; set sprite pointer to $2000
+	;lda #$80 ; = $2000 / 64
+	;sta $07f8
+
+	+setabs sprite_ptr_0, ($2000 + 64 * 0) / 64 ; j
+	+setabs sprite_ptr_1, ($2000 + 64 * 1) / 64 ; e
+	+setabs sprite_ptr_2, ($2000 + 64 * 2) / 64 ; f
+	+setabs sprite_ptr_3, ($2000 + 64 * 2) / 64 ; f, same as sprite 2
+
+	; set sprite 4 first sprites to multicolor
+	;lda #$01
+	;sta $d01c
+
+	+setabs sprite_multi, 2^0 + 2^1 + 2^2 + 2^3
+
+
+	lda #$07 ; Sprite multicolor 1
+	sta $d025
+	lda #$06 ; Sprite multicolor 2
+	sta $d026
+
+	+setabs sprite_col_0, $02
+	+setabs sprite_col_1, $02
+	+setabs sprite_col_2, $02
+	+setabs sprite_col_3, $02
+
+	+setabs sprite_0_x, ($90)
+	+setabs sprite_1_x, ($90 + $16)
+	+setabs sprite_2_x, ($90 + $16 + $13)
+	+setabs sprite_3_x, ($90 + $16 + $13 + $0e)
+
+	+setabs sprite_0_y, $84
+	+setabs sprite_1_y, $84
+	+setabs sprite_2_y, $84
+	+setabs sprite_3_y, $84
+
+
+
+
 	;+sleep
 	;ldx #$07
 	;stx horscroll
@@ -143,275 +206,6 @@ start_horscroll
 	rts
 
 
-; -------------------
-; color-setting UFO
-; -------------------
-
-	; color vector offset
-	ldx #$00
-
-	; character map pointer
-	;
-	lda #$fc
-	sta $fb
-	lda #$03
-	sta $fc
-
-	; color map pointer
-	;
-	lda #$fc
-	sta $fd
-	lda #$d7
-	sta $fe
-
-start_ufo
-
-	; character map
-	;
-	lda #$6c
-	ldy #$04
-	sta ($fb),y
-
-	; delete ufo tail if tail adress > $0400 (display start address)
-	;
-	lda $fc
-	cmp #$03
-	beq +
-	lda #$20
-	ldy #$00
-	sta ($fb),y
-+
-
-	; increment pointers
-	;
-	lda $fb
-	clc				; clear carry flag, we'll check it later
-	adc #$01
-	sta $fb		; increment lo pointer part.
-	sta $fd
-	bcc +			; if carry is set, increment hi pointer part.
-	inc $fc
-	inc $fe
-+
-
-	lda #$07
-	cmp $fc
-	bne +
-	lda #$fc
-	cmp $fb
-	bne +
-
-	jmp end_ufo
-+
-	jmp start_ufo
-
-end_ufo
-
-; -------------------
-; print title
-; -------------------
-;	ldx #$00
-;- lda .title,x
-;	cmp #$00
-;	beq +
-;	sta $0400,x
-;	inx
-;	jmp -
-;+
-
-; ------------------------
-;  Initial character
-; ------------------------
-
-	; character map pointer
-	;
-	lda #$ec ; 20 chars into the first line, minus one line
-	sta $fb
-	lda #$03
-	sta $fc
-
-	; counter
-	;
-	lda #$00
-	sta $fd
-
-	; loop
-	;
-initial_start
-
-	+sleep
-
-	; if not on the first line, delete previous
-	lda $fd
-	cmp #$00
-	beq +
-
-	lda #$20
-	ldy #$00
-	sta ($fb),y
-+
-
-	; increment pointer by one line
-	lda $fb
-	clc
-	adc #$28
-	sta $fb
-	bcc +
-	inc $fc
-+
-
-	; write initial
-	lda #$02
-	ldy #$00
-	sta ($fb),y
-
-	; check if it's over
-	inc $fd
-	lda $fd
-	cmp #$0a
-	bne initial_start
-
-
-; ---------------
-;  letters
-; ---------------
-
-	ldx #$00
-
-	; character map pointer
-	;
-	lda #<chars
-	sta $fb
-	lda #>chars
-	sta $fc
-
-
-	lda #$37
-	sta $03
-
-letter_loop
-
-	+sleep
-
-	; offset in chars
-	lda #$00
-	sta $02
-
-letters
-	; set indirect ptr in $fd/$fe
-	;
-	ldy $02
-	lda ($fb),y
-	sta $fd
-
-	inc $02
-
-	ldy $02
-	lda ($fb),y
-	sta $fe
-
-	; add offset to pointer in $fd/$fe
-	;
-	inc $02
-	ldy $02
-
-	lda $fd
-	clc
-	adc ($fb),y
-	sta $fd
-	bcc +
-	inc $fe
-+
-
-	; check if the character is offscreen, too far to the right
-	;
-	lda ($fb),y
-	cmp #$10
-	bpl offscreen_char
-
-
-	; increment pointer to simulate last position
-	;
-	inc $fd
-	bcc +
-	inc $fe
-+
-
-	; clear last position
-	;
-	tya
-	tax
-	ldy #00
-	lda #$20
-	sta ($fd),y
-	txa
-	tay
-
-	; restore pointer to current position
-	;
-	dec $fd
-	lda $fd
-	cmp #$ff
-	bne +
-	dec $fe
-+
-
-	; check if the the character is at its final position (offset 0)
-	;
-	lda ($fb),y
-	beq char_done
-	; if it's not, decrement the offset for next time
-	tax
-	dex
-	txa
-	sta ($fb),y
-
-char_done
-
-	; load character to print
-	;
-	inc $02
-
-	ldy $02
-	lda ($fb),y
-
-	; print character at pointer $fd/$fe
-	;
-	ldy #$00
-	sta ($fd),y
-
-	jmp +
-offscreen_char
-	; we stil need to decrement the offset for offscreen chars
-	;
-	inc $02
-	lda ($fb),y
-	tax
-	dex
-	txa
-	sta ($fb),y
-+
-
-	; loop for each character
-	;
-	inc $02
-	lda #$30
-	cmp $02
-	bne letters
-
-	; loop multiple times to place every letter correctly
-	;
-	dec $03
-	beq the_end
-	jmp letter_loop
-the_end
-
-; ---------------
-;  the end
-; ---------------
-	rts ; return from subroutine
-
-
 ; ---------------
 ;  data
 ; ---------------
@@ -420,6 +214,34 @@ the_end
 !addr background = $d020
 !addr foreground = $d021
 !addr horscroll = $d016
+
+!addr sprite_enable = $d015
+
+!addr sprite_ptr_0 = $07f8
+!addr sprite_ptr_1 = $07f9
+!addr sprite_ptr_2 = $07fa
+!addr sprite_ptr_3 = $07fb
+
+!addr sprite_col_0 = $d027
+!addr sprite_col_1 = $d028
+!addr sprite_col_2 = $d029
+!addr sprite_col_3 = $d02a
+
+!addr sprite_multi = $d01c
+
+!addr sprite_0_x = $d000
+!addr sprite_0_y = $d001
+!addr sprite_1_x = $d002
+!addr sprite_1_y = $d003
+!addr sprite_2_x = $d004
+!addr sprite_2_y = $d005
+!addr sprite_3_x = $d006
+!addr sprite_3_y = $d007
+
+
+
+
+.all_sprites !byte $ff
 
 ; 38 columns mode for horscroll
 
@@ -458,7 +280,7 @@ the_end
 .lo2	!byte $fe
 
 ; some test title
-.msg !scr "      Ceci est un test. Ce message devrait avoir plus de 38 caracteres de long, mais moins de 256 caracteres. --- ", 0
+.msg !scr "      Bonsoir papa. Ceci est un test. Ce message devrait avoir plus de 38 caracteres de long, mais moins de 256 caracteres. --- ", 0
 
 ; color scheme
 .colors !byte $01, $0e, $06, $0e
@@ -485,4 +307,35 @@ chars
 	!byte $cf, $05, $30, $06 ; f
 	!byte $d0, $05, $36, $06 ; f
 
-; vim: ts=2 sw=2
+; sprite 0 / multicolor / color: $02
+sprite_0
+!byte $00,$00,$00,$00,$0a,$a8,$00,$09
+!byte $58,$00,$09,$58,$00,$09,$58,$00
+!byte $0a,$5a,$00,$02,$56,$00,$02,$56
+!byte $00,$00,$96,$00,$00,$96,$00,$00
+!byte $96,$00,$00,$96,$2a,$80,$96,$25
+!byte $82,$56,$25,$82,$5a,$25,$aa,$58
+!byte $25,$69,$58,$25,$55,$58,$09,$55
+!byte $60,$02,$aa,$80,$00,$00,$00,$82
+
+; sprite 1 / multicolor / color: $02
+sprite_1
+!byte $00,$00,$00,$00,$00,$00,$00,$00
+!byte $00,$00,$00,$00,$00,$28,$00,$00
+!byte $aa,$00,$02,$96,$80,$02,$55,$80
+!byte $0a,$69,$80,$09,$a9,$80,$09,$a6
+!byte $80,$09,$96,$a0,$09,$9a,$60,$09
+!byte $5a,$60,$09,$69,$60,$09,$69,$60
+!byte $0a,$55,$a0,$02,$96,$80,$00,$aa
+!byte $00,$00,$00,$00,$00,$00,$00,$82
+
+; sprite 2 / multicolor / color: $02
+sprite_2
+!byte $00,$00,$00,$00,$a8,$00,$02,$9a
+!byte $00,$02,$56,$00,$09,$66,$00,$09
+!byte $a6,$00,$09,$8a,$00,$29,$a0,$00
+!byte $29,$68,$00,$29,$58,$00,$25,$98
+!byte $00,$25,$a0,$00,$29,$80,$00,$09
+!byte $80,$00,$09,$80,$00,$09,$80,$00
+!byte $29,$80,$00,$26,$80,$00,$2a,$80
+!byte $00,$2a,$80,$00,$00,$00,$00,$82; vim: ts=2 sw=2
