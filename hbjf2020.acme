@@ -119,6 +119,8 @@ beginning
 	;sta $d01c
 
 	+setabs sprite_multi, 2^0 + 2^1 + 2^2 + 2^3
+	+setabs sprite_x_expansion, 2^0 + 2^1 + 2^2 + 2^3
+	+setabs sprite_y_expansion, 2^0 + 2^1 + 2^2 + 2^3
 
 
 	lda #$07 ; Sprite multicolor 1
@@ -131,10 +133,10 @@ beginning
 	+setabs sprite_col_2, $02
 	+setabs sprite_col_3, $02
 
-	+setabs sprite_0_x, ($90)
-	+setabs sprite_1_x, ($90 + $16)
-	+setabs sprite_2_x, ($90 + $16 + $13)
-	+setabs sprite_3_x, ($90 + $16 + $13 + $0e)
+	+setabs sprite_0_x, ($64)
+	+setabs sprite_1_x, ($64 + $2b)
+	+setabs sprite_2_x, ($64 + $2b + $26)
+	+setabs sprite_3_x, ($64 + $2b + $26 + $1d)
 
 	+setabs sprite_0_y, $84
 	+setabs sprite_1_y, $84
@@ -238,6 +240,8 @@ start_horscroll
 !addr sprite_3_x = $d006
 !addr sprite_3_y = $d007
 
+!addr sprite_x_expansion = $d01d
+!addr sprite_y_expansion = $d017
 
 
 
@@ -287,25 +291,6 @@ start_horscroll
 
 .dummy !byte $ff, $ff
 
-
-
-
-; all chars in message except initial b
-chars
-	!byte $7d, $05, $16, $0f ; o
-	!byte $7e, $05, $1c, $0e ; n
-	!byte $7f, $05, $22, $0e ; n
-	!byte $80, $05, $28, $05 ; e
-
-	!byte $a5, $05, $1c, $06 ; f
-	!byte $a6, $05, $22, $05 ; e
-	!byte $a7, $05, $28, $14 ; t
-	!byte $a8, $05, $30, $05 ; e
-
-	!byte $cd, $05, $22, $0a ; j
-	!byte $ce, $05, $28, $05 ; e
-	!byte $cf, $05, $30, $06 ; f
-	!byte $d0, $05, $36, $06 ; f
 
 ; sprite 0 / multicolor / color: $02
 sprite_0
