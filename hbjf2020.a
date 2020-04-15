@@ -7,8 +7,10 @@
 
 *=$0820
 
-	jsr clrscr ; clear screen
+	; clear screen
+	jsr clrscr
 
+	; set colors
 	+setabs foreground, black
 	+setabs background, dark_grey
 
@@ -16,15 +18,12 @@
 	+switch_lowercase
 
 	; set 38 column mode
-	+set horscroll, .col38
-
-	;+set $0400, .zee ; .zee=$1a='Z'
+	+setabs horscroll, col38
 
 
 beginning
 
 	;enable all sprites
-
 	+setabs sprite_enable, $ff
 
 
@@ -41,50 +40,45 @@ beginning
 	cpx #$41
 	bne -
 
-	; set sprite pointer to $2000
-	;lda #$80 ; = $2000 / 64
-	;sta $07f8
-
+	; set the sprite pointers to our image data
 	+setabs sprite_ptr_0, ($2000 + 64 * 0) / 64 ; j
 	+setabs sprite_ptr_1, ($2000 + 64 * 1) / 64 ; e
 	+setabs sprite_ptr_2, ($2000 + 64 * 2) / 64 ; f
 	+setabs sprite_ptr_3, ($2000 + 64 * 2) / 64 ; f, same as sprite 2
 
-	; set sprite 4 first sprites to multicolor
-	;lda #$01
-	;sta $d01c
-
-	+setabs sprite_multi, 2^0 + 2^1 + 2^2 + 2^3
+	; all sprites expanded 2x in x and y
 	+setabs sprite_x_expansion, 2^0 + 2^1 + 2^2 + 2^3
 	+setabs sprite_y_expansion, 2^0 + 2^1 + 2^2 + 2^3
 
-
-	lda #light_grey ; Sprite multicolor 1
-	sta $d025
-	lda #$06 ; Sprite multicolor 2
-	sta $d026
-
+	; set basic sprite color
 	+setabs sprite_col_0, dark_grey
 	+setabs sprite_col_1, dark_grey
 	+setabs sprite_col_2, dark_grey
 	+setabs sprite_col_3, dark_grey
 
+	; set all sprites to multicolor
+	+setabs sprite_multi, 2^0 + 2^1 + 2^2 + 2^3
+	+setabs sprite_multicolor_1, grey
+	+setabs sprite_multicolor_2, light_grey
+
+	; set sprite x positions
 	+setabs sprite_0_x, ($64)
 	+setabs sprite_1_x, ($64 + $2b)
 	+setabs sprite_2_x, ($64 + $2b + $26)
 	+setabs sprite_3_x, ($64 + $2b + $26 + $1d)
 
+	; set sprite y positions
 	+setabs sprite_0_y, $84
 	+setabs sprite_1_y, $84
 	+setabs sprite_2_y, $84
 	+setabs sprite_3_y, $84
 
-	;+sleep
-	;ldx #$07
-	;stx horscroll
+
+; -------------------
+;  Horizontal Scroll
+; -------------------
 
 	ldy #$00
-
 
 loop
 	+sleep
@@ -109,9 +103,6 @@ loop
 	cpx #$27
 	bne -
 
-	;tya
-	;sbc #$26
-	;tay
 	ldy .hi1
 	iny
 	lda .msg, y
@@ -121,13 +112,10 @@ loop
 	sty .hi1
 +
 
-
 start_horscroll
 
 	ldx #$07
 -
-	;+sleep
-	;+sleep
 
 	stx horscroll
 	cpx #$00
@@ -136,7 +124,7 @@ start_horscroll
 	+sleep
 	jmp -
 
-
+; The End.
 
 	rts
 
@@ -145,41 +133,46 @@ start_horscroll
 ;  data
 ; ---------------
 
-!addr clrscr = $e544
-!addr background = $d020
-!addr foreground = $d021
-!addr horscroll = $d016
+!addr {
+	clrscr = $e544
+	background = $d020
+	foreground = $d021
+	horscroll = $d016
 
-!addr sprite_enable = $d015
+	sprite_enable = $d015
 
-!addr sprite_ptr_0 = $07f8
-!addr sprite_ptr_1 = $07f9
-!addr sprite_ptr_2 = $07fa
-!addr sprite_ptr_3 = $07fb
+	sprite_ptr_0 = $07f8
+	sprite_ptr_1 = $07f9
+	sprite_ptr_2 = $07fa
+	sprite_ptr_3 = $07fb
 
-!addr sprite_col_0 = $d027
-!addr sprite_col_1 = $d028
-!addr sprite_col_2 = $d029
-!addr sprite_col_3 = $d02a
+	sprite_col_0 = $d027
+	sprite_col_1 = $d028
+	sprite_col_2 = $d029
+	sprite_col_3 = $d02a
 
-!addr sprite_multi = $d01c
+	sprite_multi = $d01c
 
-!addr sprite_0_x = $d000
-!addr sprite_0_y = $d001
-!addr sprite_1_x = $d002
-!addr sprite_1_y = $d003
-!addr sprite_2_x = $d004
-!addr sprite_2_y = $d005
-!addr sprite_3_x = $d006
-!addr sprite_3_y = $d007
+	sprite_0_x = $d000
+	sprite_0_y = $d001
+	sprite_1_x = $d002
+	sprite_1_y = $d003
+	sprite_2_x = $d004
+	sprite_2_y = $d005
+	sprite_3_x = $d006
+	sprite_3_y = $d007
 
-!addr sprite_x_expansion = $d01d
-!addr sprite_y_expansion = $d017
+	sprite_x_expansion = $d01d
+	sprite_y_expansion = $d017
+
+	sprite_multicolor_1 = $d025
+	sprite_multicolor_2 = $d026
+}
 
 ; 38 columns mode for horscroll
 
-.col40 !byte $08
-.col38 !byte $00
+col40 = $08
+col38 = $00
 
 ; colors
 
@@ -199,8 +192,6 @@ grey				= $0C
 light_green	= $0D
 light_blue	= $0E
 light_grey	= $0F
-
-.zee !byte $1A
 
 ; registers 
 
