@@ -20,10 +20,12 @@
 
 	dex
 	bne .loop
+
 	pla
 	tax
 	pla
 }
+
 
 !macro set .addr, .val {
 	lda .val
@@ -46,6 +48,24 @@
 	lda $d018
 	ora #$07
 	sta $d018
+}
+
+!macro memcpy .src, .dest, .len {
+	pha
+	txa
+	pha
+
+	ldx #$00
+-
+	lda .src, x
+	sta .dest, x
+	inx
+	cpx .len
+	bne -
+
+	pla
+	tax 
+	pla
 }
 
 ; vim: ft=acme ts=2 sw=2

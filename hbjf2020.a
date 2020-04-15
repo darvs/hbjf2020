@@ -26,19 +26,10 @@ beginning
 	;enable all sprites
 	+setabs sprite_enable, $ff
 
-
-	; copy sprite data for all sprites 
-	ldx #$00
--
-	lda sprite_0, x
-	sta $2000 + 64 * 0, x
-	lda sprite_1, x
-	sta $2000 + 64 * 1, x
-	lda sprite_2, x
-	sta $2000 + 64 * 2, x
-	inx
-	cpx #$41
-	bne -
+	; copy sprite data to memory image data
+	+memcpy sprite_0, $2000 + 64 * 0, 64
+	+memcpy sprite_1, $2000 + 64 * 1, 64
+	+memcpy sprite_2, $2000 + 64 * 2, 64
 
 	; set the sprite pointers to our image data
 	+setabs sprite_ptr_0, ($2000 + 64 * 0) / 64 ; j
@@ -68,60 +59,70 @@ beginning
 	+setabs sprite_3_x, ($64 + $2b + $26 + $1d)
 
 	; set sprite y positions
-	+setabs sprite_0_y, $84
-	+setabs sprite_1_y, $84
-	+setabs sprite_2_y, $84
-	+setabs sprite_3_y, $84
+	+setabs sprite_0_y, $80
+	+setabs sprite_1_y, $80
+	+setabs sprite_2_y, $80
+	+setabs sprite_3_y, $80
 
+
+	; set scroll color
+	ldy #$00
+-	
+	lda #yellow
+	sta $d800 + 40 * 16, y
+	iny
+	cpy #$29
+	bne -
 
 ; -------------------
 ;  Horizontal Scroll
 ; -------------------
 
+	; current offset in the message
 	ldy #$00
 
 loop
-	+sleep
+	; scroll 7 pixels to the left
 	ldx #$07
 	stx horscroll
 
+	; start printing the message
 	ldx #$00
-	sty .hi1
+	sty .hi1 ; remember the offset we started from.
 -
 	lda .msg, y
-	cmp #$00
+	cmp #$00 ; check for the end of the message
 	bne +
-	ldy #$00
+	ldy #$00 ; wrap around the end of the message
 	jmp -
 +
-	iny
+	iny ; increment the offset
 
-	;sta $0400, x
-	sta $0680, x
+	sta screen + 40 * 16, x ; print out a character
 
 	inx
-	cpx #$27
-	bne -
+	cpx #$27 ; did we reach the end of the line?
+	bne - 
 
-	ldy .hi1
-	iny
-	lda .msg, y
-	cmp #$00
+	ldy .hi1 ; reset the offset 
+	iny      ; next one character for the next line
+	lda .msg, y 
+	cmp #$00 ; check the end of the message
 	bne +
-	ldy #$00
-	sty .hi1
+	ldy #$00 ; wrap around message if we're at the end
+	sty .hi1 ; remember this offset.
 +
+	+sleep
 
 start_horscroll
 
-	ldx #$07
+	ldx #$06 ; scroll 6 pixels
 -
-
-	stx horscroll
+	stx horscroll 
+	+sleep
 	cpx #$00
 	beq loop
 	dex
-	+sleep
 	jmp -
 
 ; The End.
@@ -135,6 +136,9 @@ start_horscroll
 
 !addr {
 	clrscr = $e544
+	screen = $0400
+	color_memory = $d800
+
 	background = $d020
 	foreground = $d021
 	horscroll = $d016
@@ -177,7 +181,7 @@ col38 = $00
 ; colors
 
 black				= $00
-white				= $01 
+white				= $01
 red					= $02
 blue				= $06
 cyan				= $03
@@ -193,7 +197,7 @@ light_green	= $0D
 light_blue	= $0E
 light_grey	= $0F
 
-; registers 
+; registers
 
 .r1		!byte $fb  ; fb/fc  as 16-bits register 1
 .hi1	!byte $fb
