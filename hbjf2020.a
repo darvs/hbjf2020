@@ -20,6 +20,18 @@
 	; set 38 column mode
 	+setabs horscroll, col38
 
+setup
+	; from https://www.c64-wiki.com/wiki/Raster_interrupt
+	lda #%01111111
+	sta cia_interrupt_control_and_status
+	and screen_control_register_1
+	sta screen_control_register_1
+	lda #210
+	sta interrupt_raster_line
+	+set16 interrupt_vector, irq_handler
+	+setabs interrupt_control_register, $01
+
+
 
 beginning
 
@@ -100,6 +112,31 @@ loop
 	; scroll 7 pixels to the left
 	ldx #$07
 	stx horscroll
+	jsr charscroll
+	+sleep
+
+start_horscroll
+
+	ldx #$06 ; scroll 6 pixels
+-
+	stx horscroll
+	+sleep
+	cpx #$00
+	beq loop
+	dex
+	jmp -
+
+; The End.
+
+	rts
+
+
+charscroll
+	pha 
+	tya
+	pha
+	txa
+	pha
 
 	ldy offset ; current offset in the message
 
@@ -128,23 +165,31 @@ loop
 	lda #$00
 	sta offset ; wrap around message if we're at the end
 +
-	+sleep
-
-start_horscroll
-
-	ldx #$06 ; scroll 6 pixels
--
-	stx horscroll
-	+sleep
-	cpx #$00
-	beq loop
-	dex
-	jmp -
-
-; The End.
+	pla
+	tax
+	pla
+	tay
+	pla
 
 	rts
 
+
+
+
+irq_handler
+	lda #red
+	sta $d020
+
+	ldx #90
+pause
+	dex
+	bne pause
+
+	lda #dark_grey
+	sta $d020
+
+	asl interrupt_status_register
+	jmp default_interrupt_handler
 
 ; ---------------
 ;  data
@@ -187,6 +232,16 @@ start_horscroll
 
 	sprite_multicolor_1 = $d025
 	sprite_multicolor_2 = $d026
+}
+
+!addr {
+	cia_interrupt_control_and_status = $dc0d
+	screen_control_register_1 = $d011
+	interrupt_raster_line = $d012
+	interrupt_vector = $0314
+	interrupt_control_register = $d01a
+	interrupt_status_register = $d019
+	default_interrupt_handler = $ea31
 }
 
 ; 38 columns mode for horscroll
