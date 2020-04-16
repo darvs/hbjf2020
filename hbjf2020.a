@@ -15,10 +15,10 @@
 	sta $0500,x 
 	sta $0600,x 
 	sta $06e8,x 
-	sta $3000,x  
-	sta $3100,x
-	sta $3200,x
-	sta $32e8,x
+	sta backbuffer + 256 * 0,x  
+	sta backbuffer + 256 * 1,x
+	sta backbuffer + 256 * 2,x
+	sta backbuffer + 256 * 3 - 18,x
 
 	inx           
 	bne -				; did X overflow to zero yet?
@@ -36,7 +36,6 @@
 	and #%11110111
 	sta horscroll
 
-
 beginning
 
 	;enable all sprites
@@ -53,11 +52,11 @@ beginning
 	+setabs sprite_ptr_2, ($2000 + 64 * 2) / 64 ; f
 	+setabs sprite_ptr_3, ($2000 + 64 * 2) / 64 ; f, same as sprite 2
 
-	; set the sprite pointers to our image data for the back buffer
-	+setabs sprite_ptr_0_back, ($2000 + 64 * 0) / 64 ; j
-	+setabs sprite_ptr_1_back, ($2000 + 64 * 1) / 64 ; e
-	+setabs sprite_ptr_2_back, ($2000 + 64 * 2) / 64 ; f
-	+setabs sprite_ptr_3_back, ($2000 + 64 * 2) / 64 ; f, same as sprite 2
+	; set the sprite pointers to our image data for the backbuffer
+	+setabs sprite_ptr_0_backbuffer, ($2000 + 64 * 0) / 64 ; j
+	+setabs sprite_ptr_1_backbuffer, ($2000 + 64 * 1) / 64 ; e
+	+setabs sprite_ptr_2_backbuffer, ($2000 + 64 * 2) / 64 ; f
+	+setabs sprite_ptr_3_backbuffer, ($2000 + 64 * 2) / 64 ; f, same as sprite 2
 
 	; all sprites expanded 2x in x and y
 	+setabs sprite_x_expansion, 2^0 + 2^1 + 2^2 + 2^3
@@ -177,6 +176,9 @@ scroller
 	sta horscroll
 	;+setabs horscroll, $07
 ++
+	+setabs interrupt_raster_line, int_grafx_raster_line
+	+set16 interrupt_vector, grafx
+
 	pla
 	tax
 	pla
@@ -193,8 +195,7 @@ irq_setup
 	sta cia_interrupt_control_and_status
 	and screen_control_register_1
 	sta screen_control_register_1
-	lda #$0d
-	sta interrupt_raster_line
+	+setabs interrupt_raster_line, int_scroller_raster_line
 	+set16 interrupt_vector, scroller
 	+setabs interrupt_control_register, $01
 
@@ -218,7 +219,7 @@ swap_screen
 	;+set16 current_backbuffer, screen
 	lda memory_setup_register
 	and #15
-	ora #192
+	ora #(backbuffer / 64)
 	sta memory_setup_register
 	+setabs screen_swapped, $01
 
@@ -284,20 +285,31 @@ charscroll
 	rts
 
 
-irq_handler
+grafx
 	lda #red
 	sta background
 
-	ldx #90
+	lda $d011
+	ora #%00100000
+	sta $d011
+
+	ldx #255
 pause
 	dex
 	bne pause
 
+	lda $d011
+	and #%11011111
+	sta $d011
+
 	lda #dark_grey
 	sta background
 
+	+setabs interrupt_raster_line, int_scroller_raster_line
+	+set16 interrupt_vector, scroller
+
 	asl interrupt_status_register
-	jmp default_interrupt_handler
+	jmp final_interrupt_handler
 
 ; ---------------
 ;  data
@@ -319,10 +331,10 @@ pause
 	sprite_ptr_2 = $07fa
 	sprite_ptr_3 = $07fb
 
-	sprite_ptr_0_back = $33f8
-	sprite_ptr_1_back = $33f9
-	sprite_ptr_2_back = $33fa
-	sprite_ptr_3_back = $33fb
+	sprite_ptr_0_backbuffer = backbuffer + 1024 - 8 ; $33f8
+	sprite_ptr_1_backbuffer = backbuffer + 1024 - 7 ; $33f9
+	sprite_ptr_2_backbuffer = backbuffer + 1024 - 6 ; $33fa
+	sprite_ptr_3_backbuffer = backbuffer + 1024 - 5 ; $33fb
 
 	sprite_col_0 = $d027
 	sprite_col_1 = $d028
@@ -356,6 +368,7 @@ pause
 	interrupt_control_register = $d01a
 	interrupt_status_register = $d019
 	default_interrupt_handler = $ea31
+	final_interrupt_handler = $ea81
 }
 
 ; 38 columns mode for horscroll
@@ -401,7 +414,7 @@ light_grey	= $0F
 	strlen = $02
 	offset = $fd
 
-	backbuffer = $3000
+	backbuffer = $2400
 
 	;current_screen = $f7
 	;current_backbuffer = $f9
@@ -411,7 +424,10 @@ light_grey	= $0F
 	screen_swapped = $ff
 }
 
-max_slowdown  = $02
+int_scroller_raster_line = $0d
+int_grafx_raster_line = $4C
+
+max_slowdown  = $01
 
 
 ; some test title
