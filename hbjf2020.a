@@ -8,7 +8,20 @@
 *=$0820
 
 	; clear screen
-	jsr clrscr
+	ldx #$00
+-
+	lda #$20		; #$20 is a blank char
+	sta $0400,x ; fill four areas with 256 spacebar characters
+	sta $0500,x 
+	sta $0600,x 
+	sta $06e8,x 
+	sta $3000,x  
+	sta $3100,x
+	sta $3200,x
+	sta $32e8,x
+
+	inx           
+	bne -				; did X overflow to zero yet?
 
 	; set colors
 	+setabs foreground, black
@@ -19,19 +32,6 @@
 
 	; set 38 column mode
 	+setabs horscroll, col38
-
-setup
-	; from https://www.c64-wiki.com/wiki/Raster_interrupt
-	lda #%01111111
-	sta cia_interrupt_control_and_status
-	and screen_control_register_1
-	sta screen_control_register_1
-	lda #210
-	sta interrupt_raster_line
-	+set16 interrupt_vector, irq_handler
-	+setabs interrupt_control_register, $01
-
-
 
 beginning
 
@@ -48,6 +48,12 @@ beginning
 	+setabs sprite_ptr_1, ($2000 + 64 * 1) / 64 ; e
 	+setabs sprite_ptr_2, ($2000 + 64 * 2) / 64 ; f
 	+setabs sprite_ptr_3, ($2000 + 64 * 2) / 64 ; f, same as sprite 2
+
+	; set the sprite pointers to our image data for the back buffer
+	+setabs sprite_ptr_0_back, ($2000 + 64 * 0) / 64 ; j
+	+setabs sprite_ptr_1_back, ($2000 + 64 * 1) / 64 ; e
+	+setabs sprite_ptr_2_back, ($2000 + 64 * 2) / 64 ; f
+	+setabs sprite_ptr_3_back, ($2000 + 64 * 2) / 64 ; f, same as sprite 2
 
 	; all sprites expanded 2x in x and y
 	+setabs sprite_x_expansion, 2^0 + 2^1 + 2^2 + 2^3
@@ -76,14 +82,13 @@ beginning
 	+setabs sprite_2_y, $80
 	+setabs sprite_3_y, $80
 
-
 	; set scroll color
 	ldy #$00
 -
 	lda #yellow
 	sta $d800 + 40 * scroll_line, y
 	iny
-	cpy #$29
+	cpy #$28
 	bne -
 
 
@@ -104,6 +109,12 @@ beginning
 	lda #$00
 	sta offset
 
+	+setabs screen_swapped, $00
+	jsr swap_screen
+
+	; setup irq handler
+	jsr irq_setup
+
 ; -------------------
 ;  Horizontal Scroll
 ; -------------------
@@ -112,7 +123,7 @@ loop
 	; scroll 7 pixels to the left
 	ldx #$07
 	stx horscroll
-	jsr charscroll
+	jsr swap_screen
 	+sleep
 
 start_horscroll
@@ -131,12 +142,52 @@ start_horscroll
 	rts
 
 
+irq_setup
+	; from https://www.c64-wiki.com/wiki/Raster_interrupt
+	lda #%01111111
+	sta cia_interrupt_control_and_status
+	and screen_control_register_1
+	sta screen_control_register_1
+	lda #210
+	sta interrupt_raster_line
+	+set16 interrupt_vector, charscroll
+	+setabs interrupt_control_register, $01
+
+	rts
+
+swap_screen
+	lda screen_swapped
+	cmp #0
+	beq +
+
+	;+set16 current_screen, screen
+	;+set16 current_backbuffer, backbuffer
+	lda memory_setup_register
+	and #15
+	ora #16
+	sta memory_setup_register
+	+setabs screen_swapped, $00
+	rts
++
+	;+set16 current_screen, backbuffer
+	;+set16 current_backbuffer, screen
+	lda memory_setup_register
+	and #15
+	ora #192
+	sta memory_setup_register
+	+setabs screen_swapped, $01
+
+	rts
+	
 charscroll
 	pha 
 	tya
 	pha
 	txa
 	pha
+
+	lda #blue
+	sta background
 
 	ldy offset ; current offset in the message
 
@@ -149,10 +200,21 @@ charscroll
 	ldy #$00 ; wrap around the end of the message
 	jmp -
 +
+
+	lda screen_swapped
+	cmp #01
+	beq +
 	lda .msg, y
+	sta backbuffer + 40 * scroll_line, x
+	jmp ++
++
+	lda .msg, y
+	sta screen + 40 * scroll_line, x
+++	
+
 	iny ; increment the message offset
 
-	sta screen + 40 * scroll_line, x ; print out a character
+	;sta current_backbuffer + 40 * scroll_line), x ; print out a character
 
 	inx
 	cpx #$27 ; did we reach the end of the line?
@@ -171,14 +233,16 @@ charscroll
 	tay
 	pla
 
-	rts
+	lda #dark_grey
+	sta background
 
-
+	asl interrupt_status_register
+	jmp default_interrupt_handler
 
 
 irq_handler
 	lda #red
-	sta $d020
+	sta background
 
 	ldx #90
 pause
@@ -186,7 +250,7 @@ pause
 	bne pause
 
 	lda #dark_grey
-	sta $d020
+	sta background
 
 	asl interrupt_status_register
 	jmp default_interrupt_handler
@@ -210,6 +274,11 @@ pause
 	sprite_ptr_1 = $07f9
 	sprite_ptr_2 = $07fa
 	sprite_ptr_3 = $07fb
+
+	sprite_ptr_0_back = $33f8
+	sprite_ptr_1_back = $33f9
+	sprite_ptr_2_back = $33fa
+	sprite_ptr_3_back = $33fb
 
 	sprite_col_0 = $d027
 	sprite_col_1 = $d028
@@ -237,6 +306,7 @@ pause
 !addr {
 	cia_interrupt_control_and_status = $dc0d
 	screen_control_register_1 = $d011
+	memory_setup_register = $d018
 	interrupt_raster_line = $d012
 	interrupt_vector = $0314
 	interrupt_control_register = $d01a
@@ -251,7 +321,7 @@ col38 = $00
 
 ; line to scroll
 
-scroll_line = $17
+scroll_line = $11
 
 ; colors
 
@@ -286,6 +356,13 @@ light_grey	= $0F
 
 	strlen = $02
 	offset = $fd
+
+	backbuffer = $3000
+
+	;current_screen = $f7
+	;current_backbuffer = $f9
+
+	screen_swapped = $ff
 }
 
 ; some test title
