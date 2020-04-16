@@ -10,7 +10,7 @@
 	; clear screen
 	ldx #$00
 -
-	lda #$20		; #$20 is a blank char
+	lda #$71		; #$20 is a blank char
 	sta $0400,x ; fill four areas with 256 spacebar characters
 	sta $0500,x 
 	sta $0600,x 
@@ -31,7 +31,11 @@
 	+switch_lowercase
 
 	; set 38 column mode
-	+setabs horscroll, col38
+	;+setabs horscroll, col38
+	lda horscroll
+	and #%11110111
+	sta horscroll
+
 
 beginning
 
@@ -110,36 +114,77 @@ beginning
 	sta offset
 
 	+setabs screen_swapped, $00
-	jsr swap_screen
+	;jsr swap_screen
+
+	; initialize scroll
+	lda horscroll
+	and #%11100111
+	ora #7
+	sta horscroll
+
+	+setabs slowdown, max_slowdown
 
 	; setup irq handler
 	jsr irq_setup
+
+	; wait for spacebar
+-
+	lda $dc01
+	cmp #$ef
+	bne -
+
+; The End.
+
+	rts
+
+
 
 ; -------------------
 ;  Horizontal Scroll
 ; -------------------
 
-loop
+scroller
+	pha 
+	tya
+	pha
+	txa
+	pha
+
+	dec slowdown
+	lda slowdown
+	cmp #0
+	bne ++
+	+setabs slowdown, max_slowdown
+
 	; scroll 7 pixels to the left
-	ldx #$07
-	stx horscroll
+	dec horscroll
+	lda horscroll
+	and #7
+	;+set $d020, horscroll
+	cmp #0
+	beq +
+	dec horscroll
+	jmp ++
++
+	;lda horscroll
+	;sta $0400
+	;dec $d020
+	jsr charscroll
 	jsr swap_screen
-	+sleep
+	lda horscroll
+	;and #%11100111
+	ora #7
+	sta horscroll
+	;+setabs horscroll, $07
+++
+	pla
+	tax
+	pla
+	tay
+	pla
 
-start_horscroll
-
-	ldx #$06 ; scroll 6 pixels
--
-	stx horscroll
-	+sleep
-	cpx #$00
-	beq loop
-	dex
-	jmp -
-
-; The End.
-
-	rts
+	asl interrupt_status_register
+	jmp default_interrupt_handler
 
 
 irq_setup
@@ -148,9 +193,9 @@ irq_setup
 	sta cia_interrupt_control_and_status
 	and screen_control_register_1
 	sta screen_control_register_1
-	lda #210
+	lda #$0d
 	sta interrupt_raster_line
-	+set16 interrupt_vector, charscroll
+	+set16 interrupt_vector, scroller
 	+setabs interrupt_control_register, $01
 
 	rts
@@ -180,11 +225,11 @@ swap_screen
 	rts
 	
 charscroll
-	pha 
-	tya
-	pha
-	txa
-	pha
+	; pha 
+	; tya
+	; pha
+	; txa
+	; pha
 
 	lda #blue
 	sta background
@@ -227,17 +272,16 @@ charscroll
 	lda #$00
 	sta offset ; wrap around message if we're at the end
 +
-	pla
-	tax
-	pla
-	tay
-	pla
+	; pla
+	; tax
+	; pla
+	; tay
+	; pla
 
 	lda #dark_grey
 	sta background
 
-	asl interrupt_status_register
-	jmp default_interrupt_handler
+	rts
 
 
 irq_handler
@@ -361,9 +405,14 @@ light_grey	= $0F
 
 	;current_screen = $f7
 	;current_backbuffer = $f9
+	;current_scroll = $fd
+	slowdown = $f7
 
 	screen_swapped = $ff
 }
+
+max_slowdown  = $02
+
 
 ; some test title
 .msg !scr "       Ceci est un message plus court mais pas tant que ca", 0
