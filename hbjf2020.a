@@ -67,12 +67,15 @@ beginning
 
 	; set scroll color
 	ldy #$00
--	
+-
 	lda #yellow
 	sta $d800 + 40 * scroll_line, y
 	iny
 	cpy #$29
 	bne -
+
+
+	; initialize strlen, the message length
 
 	ldy #$00
 -
@@ -84,21 +87,25 @@ beginning
 +
 	sty strlen
 
+	; clear message offset
+
+	lda #$00
+	sta offset
+
 ; -------------------
 ;  Horizontal Scroll
 ; -------------------
-
-	; current offset in the message
-	ldy #$00
 
 loop
 	; scroll 7 pixels to the left
 	ldx #$07
 	stx horscroll
 
+	ldy offset ; current offset in the message
+
 	; start printing the message
 	ldx #$00
-	sty .hi1 ; remember the offset we started from.
+	;sty offset ; remember the offset we started from.
 -
 	cpy strlen
 	bne +
@@ -112,16 +119,14 @@ loop
 
 	inx
 	cpx #$27 ; did we reach the end of the line?
-	bne - 
+	bne -
 
-	ldy .hi1 ; reset the offset 
-	iny      ; next one character for the next line
-	;lda .msg, y 
-	;cmp #$00 ; check the end of the message
-	cpy strlen
+	inc offset ; reset the offset
+	lda offset
+	cmp strlen
 	bne +
-	ldy #$00 ; wrap around message if we're at the end
-	;sty .hi1 ; remember this offset.
+	lda #$00
+	sta offset ; wrap around message if we're at the end
 +
 	+sleep
 
@@ -129,7 +134,7 @@ start_horscroll
 
 	ldx #$06 ; scroll 6 pixels
 -
-	stx horscroll 
+	stx horscroll
 	+sleep
 	cpx #$00
 	beq loop
@@ -220,15 +225,16 @@ light_grey	= $0F
 	.hi1	= $fb
 	.lo1	= $fc
 
-	.r2		= $fd  ; fd/fe  as 16-bits register 2
-	.hi2	= $fd
-	.lo2	= $fe
+	; .r2		= $fd  ; fd/fe  as 16-bits register 2
+	; .hi2	= $fd
+	; .lo2	= $fe
 
-	strlen = $0002
+	strlen = $02
+	offset = $fd
 }
 
 ; some test title
-.msg !scr "      Bonsoir papa. Ceci est un test. Ce message devrait avoir plus de 38 caracteres de long, mais moins de 256 caracteres. --- ", 0
+.msg !scr "       Ceci est un message plus court mais pas tant que ca", 0
 
 ; color scheme
 .colors !byte $01, $0e, $06, $0e
