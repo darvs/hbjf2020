@@ -69,10 +69,20 @@ beginning
 	ldy #$00
 -	
 	lda #yellow
-	sta $d800 + 40 * 16, y
+	sta $d800 + 40 * scroll_line, y
 	iny
 	cpy #$29
 	bne -
+
+	ldy #$00
+-
+	lda .msg, y
+	cmp #$00
+	beq +
+	iny
+	jmp -
++
+	sty strlen
 
 ; -------------------
 ;  Horizontal Scroll
@@ -90,15 +100,15 @@ loop
 	ldx #$00
 	sty .hi1 ; remember the offset we started from.
 -
-	lda .msg, y
-	cmp #$00 ; check for the end of the message
+	cpy strlen
 	bne +
 	ldy #$00 ; wrap around the end of the message
 	jmp -
 +
-	iny ; increment the offset
+	lda .msg, y
+	iny ; increment the message offset
 
-	sta screen + 40 * 16, x ; print out a character
+	sta screen + 40 * scroll_line, x ; print out a character
 
 	inx
 	cpx #$27 ; did we reach the end of the line?
@@ -106,11 +116,12 @@ loop
 
 	ldy .hi1 ; reset the offset 
 	iny      ; next one character for the next line
-	lda .msg, y 
-	cmp #$00 ; check the end of the message
+	;lda .msg, y 
+	;cmp #$00 ; check the end of the message
+	cpy strlen
 	bne +
 	ldy #$00 ; wrap around message if we're at the end
-	sty .hi1 ; remember this offset.
+	;sty .hi1 ; remember this offset.
 +
 	+sleep
 
@@ -178,6 +189,10 @@ start_horscroll
 col40 = $08
 col38 = $00
 
+; line to scroll
+
+scroll_line = $17
+
 ; colors
 
 black				= $00
@@ -199,13 +214,18 @@ light_grey	= $0F
 
 ; registers
 
-.r1		!byte $fb  ; fb/fc  as 16-bits register 1
-.hi1	!byte $fb
-.lo1	!byte $fc
+!addr {
 
-.r2		!byte $fd  ; fd/fe  as 16-bits register 2
-.hi2	!byte $fd
-.lo2	!byte $fe
+	.r1		= $fb  ; fb/fc  as 16-bits register 1
+	.hi1	= $fb
+	.lo1	= $fc
+
+	.r2		= $fd  ; fd/fe  as 16-bits register 2
+	.hi2	= $fd
+	.lo2	= $fe
+
+	strlen = $0002
+}
 
 ; some test title
 .msg !scr "      Bonsoir papa. Ceci est un test. Ce message devrait avoir plus de 38 caracteres de long, mais moins de 256 caracteres. --- ", 0
