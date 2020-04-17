@@ -3,13 +3,14 @@
 
 
 *=$2000
-!bin "clouds_bitmap.raw"
+!bin "background_bitmap.raw"
 
-*=$0400
-!bin "clouds_screen.raw"
 
-; *=$d800
-; !bin "clouds_color-ram.raw",256
+*=$c000
+!bin "background_screen.raw"
+
+; *=$c400
+; !bin "clouds_color-ram.raw"
 
 ; -------------------
 ;  ASM
@@ -20,18 +21,43 @@
 	; clear screen
 	ldx #$00
 -
-	lda #33		; #$20 is a blank char
+	;lda #33		; #$20 is a blank char
 	; sta screen			+ 256 * 0,x ; fill four areas with 256 spacebar characters
 	; sta screen			+ 256 * 1,x
 	; sta screen			+ 256 * 2,x
 	; sta screen			+ 256 * 3 - 18,x
-	; sta backbuffer	+ 256 * 0,x
-	; sta backbuffer	+ 256 * 1,x
-	; sta backbuffer	+ 256 * 2,x
-	; sta backbuffer	+ 256 * 3 - 18,x
+
+	lda $c000 		+ 256 * 0, x
+	sta screen	+ 256 * 0, x
+	lda $c000 		+ 256 * 1, x
+	sta screen	+ 256 * 1, x
+	lda $c000 		+ 256 * 2, x
+	sta screen	+ 256 * 2, x
+	;lda $c000 		+ 256 * 3 - 18, x
+	;sta screen	+ 256 * 3 - 18, x
+
+	; lda #yellow
+	; sta $d800	+ 256 * 0, x
+	; sta $d800	+ 256 * 1, x
+
+	lda #black
+	sta $d800	+ 256 * 2, x
+
+	; ;lda $c400 		+ 256 * 3 - 18, x
+	; lda #dark_grey
+	; sta $d800	+ 256 * 3 - 18, x
 
 	inx
 	bne -				; did X overflow to zero yet?
+
+	ldx #$00
+	;lda #$1a
+	lda #$20
+-
+	sta screen + 18 * 40, x 
+	inx
+	bne -
+
 
 	; set colors
 	+setabs foreground, black
@@ -62,12 +88,6 @@ beginning
 	+setabs sprite_ptr_2, ($2000 + 64 * 2) / 64 ; f
 	+setabs sprite_ptr_3, ($2000 + 64 * 2) / 64 ; f, same as sprite 2
 
-	; set the sprite pointers to our image data for the backbuffer
-	+setabs sprite_ptr_0_backbuffer, ($2000 + 64 * 0) / 64 ; j
-	+setabs sprite_ptr_1_backbuffer, ($2000 + 64 * 1) / 64 ; e
-	+setabs sprite_ptr_2_backbuffer, ($2000 + 64 * 2) / 64 ; f
-	+setabs sprite_ptr_3_backbuffer, ($2000 + 64 * 2) / 64 ; f, same as sprite 2
-
 	; all sprites expanded 2x in x and y
 	+setabs sprite_x_expansion, 2^0 + 2^1 + 2^2 + 2^3
 	+setabs sprite_y_expansion, 2^0 + 2^1 + 2^2 + 2^3
@@ -80,8 +100,8 @@ beginning
 
 	; set all sprites to multicolor
 	+setabs sprite_multi, 2^0 + 2^1 + 2^2 + 2^3
-	+setabs sprite_multicolor_1, grey
-	+setabs sprite_multicolor_2, light_grey
+	+setabs sprite_multicolor_2, grey
+	+setabs sprite_multicolor_1, light_grey 
 
 	; set sprite x positions
 	+setabs sprite_0_x, ($64)
@@ -121,9 +141,6 @@ beginning
 
 	lda #$00
 	sta offset
-
-	+setabs screen_swapped, $00
-	;jsr swap_screen
 
 	; initialize scroll
 	lda horscroll
@@ -166,7 +183,7 @@ scroller
 	+setabs slowdown, max_slowdown
 
 	; scroll 7 pixels to the left
-	dec horscroll
+	;dec horscroll
 	lda horscroll
 	and #7
 	;+set $d020, horscroll
@@ -177,9 +194,8 @@ scroller
 +
 	;lda horscroll
 	;sta $0400
-	;dec $d020
 	jsr charscroll
-	;jsr swap_screen
+	;dec $d021
 	lda horscroll
 	;and #%11100111
 	ora #7
@@ -196,7 +212,7 @@ scroller
 	pla
 
 	asl interrupt_status_register
-	jmp default_interrupt_handler
+	jmp final_interrupt_handler
 
 
 irq_setup
@@ -205,33 +221,9 @@ irq_setup
 	sta cia_interrupt_control_and_status
 	and screen_control_register_1
 	sta screen_control_register_1
-	+setabs interrupt_raster_line, int_scroller_raster_line
-	+set16 interrupt_vector, scroller
+	+setabs interrupt_raster_line, int_grafx_raster_line
+	+set16 interrupt_vector, grafx
 	+setabs interrupt_control_register, $01
-
-	rts
-
-swap_screen
-	lda screen_swapped
-	cmp #0
-	beq +
-
-	;+set16 current_screen, screen
-	;+set16 current_backbuffer, backbuffer
-	lda memory_setup_register
-	and #15
-	ora #16
-	sta memory_setup_register
-	+setabs screen_swapped, $00
-	rts
-+
-	;+set16 current_screen, backbuffer
-	;+set16 current_backbuffer, screen
-	lda memory_setup_register
-	and #15
-	ora #(backbuffer / 64)
-	sta memory_setup_register
-	+setabs screen_swapped, $01
 
 	rts
 
@@ -257,20 +249,10 @@ charscroll
 	jmp -
 +
 
-	lda screen_swapped
-	; cmp #01
-	; beq +
-	; lda .msg, y
-	; sta backbuffer + 40 * scroll_line, x
-	; jmp ++
-; +
 	lda .msg, y
 	sta screen + 40 * scroll_line, x
-++
 
 	iny ; increment the message offset
-
-	;sta current_backbuffer + 40 * scroll_line), x ; print out a character
 
 	inx
 	cpx #$27 ; did we reach the end of the line?
@@ -301,38 +283,61 @@ grafx
 
 	; set graphics mode
 	lda $d011
+	;pha
+	sta tmp1
 	and #%10011111
 	ora #%00100000
 	sta $d011
 
 	; set multi-color graphics
 	lda $d016
+	sta tmp2
+	;pha
 	ora #%00010000
 	sta $d016
 
 	; set graphics source
 	lda $d018
-	pha
+	sta tmp3
+	;pha
 	ora #%00001000
 	sta $d018
 
 	ldy horscroll
+	sty last_horscroll
 	+setabs horscroll, 0
 
-	ldx #255
-pause
-	dex
-	bne pause
+	+setabs interrupt_raster_line, int_text_raster_line
+	+set16 interrupt_vector, textmode
 
-	sty horscroll
+	asl interrupt_status_register
+	jmp default_interrupt_handler
 
-	pla 
+
+textmode
+	;pla
+	;sta $d018
+	;pla
+	;sta $d016
+	;pla
+	;sta $d011
+
+	lda tmp3
 	sta $d018
 
-	; set text-mode
-	lda $d011
-	and #%11011111
+	lda tmp2
+	sta $d016
+
+	lda tmp1
 	sta $d011
+
+	ldy last_horscroll
+	sty horscroll
+
+	; set text-mode
+	; lda $d011
+	; and #%11011111
+	; sta $d011
 
 	lda #dark_grey
 	sta background
@@ -341,7 +346,7 @@ pause
 	+set16 interrupt_vector, scroller
 
 	asl interrupt_status_register
-	jmp final_interrupt_handler
+	jmp default_interrupt_handler
 
 ; ---------------
 ;  data
@@ -362,11 +367,6 @@ pause
 	sprite_ptr_1 = $07f9
 	sprite_ptr_2 = $07fa
 	sprite_ptr_3 = $07fb
-
-	sprite_ptr_0_backbuffer = backbuffer + 1024 - 8 ; $33f8
-	sprite_ptr_1_backbuffer = backbuffer + 1024 - 7 ; $33f9
-	sprite_ptr_2_backbuffer = backbuffer + 1024 - 6 ; $33fa
-	sprite_ptr_3_backbuffer = backbuffer + 1024 - 5 ; $33fb
 
 	sprite_col_0 = $d027
 	sprite_col_1 = $d028
@@ -410,7 +410,7 @@ col38 = $00
 
 ; line to scroll
 
-scroll_line = $11
+scroll_line = $16
 
 ; colors
 
@@ -446,21 +446,21 @@ light_grey	= $0F
 	strlen = $02
 	offset = $fd
 
-	backbuffer = $2400
-
 	;current_screen = $f7
 	;current_backbuffer = $f9
 	;current_scroll = $fd
 	slowdown = $f7
-
-	screen_swapped = $ff
+	last_horscroll = $f8
+	tmp1 = $f9
+	tmp2 = $fa
+	tmp3 = $fb
 }
 
-int_scroller_raster_line = $0d
-int_grafx_raster_line = $5C
+int_scroller_raster_line = 243
+int_grafx_raster_line = 20
+int_text_raster_line = 192
 
 max_slowdown  = $01
-
 
 ; some test title
 .msg !scr "       Ceci est un message plus court mais pas tant que ca", 0
