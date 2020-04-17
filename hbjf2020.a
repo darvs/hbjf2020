@@ -21,43 +21,29 @@
 	; clear screen
 	ldx #$00
 -
-	;lda #33		; #$20 is a blank char
-	; sta screen			+ 256 * 0,x ; fill four areas with 256 spacebar characters
-	; sta screen			+ 256 * 1,x
-	; sta screen			+ 256 * 2,x
-	; sta screen			+ 256 * 3 - 18,x
-
 	lda $c000 		+ 256 * 0, x
 	sta screen	+ 256 * 0, x
 	lda $c000 		+ 256 * 1, x
 	sta screen	+ 256 * 1, x
-	lda $c000 		+ 256 * 2, x
-	sta screen	+ 256 * 2, x
-	;lda $c000 		+ 256 * 3 - 18, x
-	;sta screen	+ 256 * 3 - 18, x
 
-	; lda #yellow
-	; sta $d800	+ 256 * 0, x
-	; sta $d800	+ 256 * 1, x
+	lda $c000 		+ 256 * 2, x
+	lda #black
+	sta screen	+ 256 * 2, x
+
+	; wipe the color between the bitmap and the scroll
 
 	lda #black
-	sta $d800	+ 256 * 2, x
-
-	; ;lda $c400 		+ 256 * 3 - 18, x
-	; lda #dark_grey
-	; sta $d800	+ 256 * 3 - 18, x
+	sta color_memory	+ 256 * 2, x
 
 	inx
 	bne -				; did X overflow to zero yet?
 
 	ldx #$00
-	;lda #$1a
 	lda #$20
 -
 	sta screen + 18 * 40, x 
 	inx
 	bne -
-
 
 	; set colors
 	+setabs foreground, black
@@ -116,21 +102,19 @@ beginning
 	+setabs sprite_3_y, $80
 
 	; set scroll color
-	ldy #$00
+	ldy #0
 -
 	lda #yellow
-	sta $d800 + 40 * scroll_line, y
+	sta color_memory + 40 * scroll_line, y
 	iny
-	cpy #$28
+	cpy #40
 	bne -
 
 
-	; initialize strlen, the message length
-
+	; set strlen to the message length
 	ldy #$00
 -
 	lda .msg, y
-	cmp #$00
 	beq +
 	iny
 	jmp -
@@ -138,9 +122,7 @@ beginning
 	sty strlen
 
 	; clear message offset
-
-	lda #$00
-	sta offset
+	+setabs offset, $00
 
 	; initialize scroll
 	lda horscroll
@@ -177,30 +159,20 @@ scroller
 	pha
 
 	dec slowdown
-	lda slowdown
-	cmp #0
 	bne ++
 	+setabs slowdown, max_slowdown
 
-	; scroll 7 pixels to the left
-	;dec horscroll
+	; scroll one pixel to the left
 	lda horscroll
 	and #7
-	;+set $d020, horscroll
-	cmp #0
 	beq +
 	dec horscroll
 	jmp ++
 +
-	;lda horscroll
-	;sta $0400
-	jsr charscroll
-	;dec $d021
+	jsr charscroll ; scroll char on horscroll 0
 	lda horscroll
-	;and #%11100111
 	ora #7
-	sta horscroll
-	;+setabs horscroll, $07
+	sta horscroll ; reset horscroll to 7
 ++
 	+setabs interrupt_raster_line, int_grafx_raster_line
 	+set16 interrupt_vector, grafx
@@ -228,58 +200,40 @@ irq_setup
 	rts
 
 charscroll
-	; pha
-	; tya
-	; pha
-	; txa
-	; pha
-
-	lda #blue
-	sta background
+	+setabs background, blue
 
 	ldy offset ; current offset in the message
 
 	; start printing the message
-	ldx #$00
-	;sty offset ; remember the offset we started from.
+	ldx #0
 -
 	cpy strlen
 	bne +
-	ldy #$00 ; wrap around the end of the message
+	ldy #0 ; wrap around the end of the message
 	jmp -
 +
-
 	lda .msg, y
 	sta screen + 40 * scroll_line, x
 
 	iny ; increment the message offset
 
 	inx
-	cpx #$27 ; did we reach the end of the line?
+	cpx #39 ; did we reach the end of the line?
 	bne -
 
 	inc offset ; reset the offset
 	lda offset
 	cmp strlen
 	bne +
-	lda #$00
-	sta offset ; wrap around message if we're at the end
+	+setabs offset, $00 ; wrap around message if we're at the end 
 +
-	; pla
-	; tax
-	; pla
-	; tay
-	; pla
-
-	lda #dark_grey
-	sta background
+	+setabs background, dark_grey
 
 	rts
 
 
 grafx
-	lda #red
-	sta background
+	+setabs background, red
 
 	; set graphics mode
 	lda $d011
@@ -334,13 +288,7 @@ textmode
 	ldy last_horscroll
 	sty horscroll
 
-	; set text-mode
-	; lda $d011
-	; and #%11011111
-	; sta $d011
-
-	lda #dark_grey
-	sta background
+	+setabs background, dark_grey
 
 	+setabs interrupt_raster_line, int_scroller_raster_line
 	+set16 interrupt_vector, scroller
@@ -446,9 +394,6 @@ light_grey	= $0F
 	strlen = $02
 	offset = $fd
 
-	;current_screen = $f7
-	;current_backbuffer = $f9
-	;current_scroll = $fd
 	slowdown = $f7
 	last_horscroll = $f8
 	tmp1 = $f9
@@ -464,9 +409,6 @@ max_slowdown  = $01
 
 ; some test title
 .msg !scr "       Ceci est un message plus court mais pas tant que ca", 0
-
-; color scheme
-.colors !byte $01, $0e, $06, $0e
 
 !src "sprites.a"
 
