@@ -1,6 +1,16 @@
 !src "macros.a"
 !src "stub.a"
 
+
+*=$2000
+!bin "clouds_bitmap.raw"
+
+*=$0400
+!bin "clouds_screen.raw"
+
+; *=$d800
+; !bin "clouds_color-ram.raw",256
+
 ; -------------------
 ;  ASM
 ; -------------------
@@ -10,17 +20,17 @@
 	; clear screen
 	ldx #$00
 -
-	lda #$71		; #$20 is a blank char
-	sta $0400,x ; fill four areas with 256 spacebar characters
-	sta $0500,x 
-	sta $0600,x 
-	sta $06e8,x 
-	sta backbuffer + 256 * 0,x  
-	sta backbuffer + 256 * 1,x
-	sta backbuffer + 256 * 2,x
-	sta backbuffer + 256 * 3 - 18,x
+	lda #33		; #$20 is a blank char
+	; sta screen			+ 256 * 0,x ; fill four areas with 256 spacebar characters
+	; sta screen			+ 256 * 1,x
+	; sta screen			+ 256 * 2,x
+	; sta screen			+ 256 * 3 - 18,x
+	; sta backbuffer	+ 256 * 0,x
+	; sta backbuffer	+ 256 * 1,x
+	; sta backbuffer	+ 256 * 2,x
+	; sta backbuffer	+ 256 * 3 - 18,x
 
-	inx           
+	inx
 	bne -				; did X overflow to zero yet?
 
 	; set colors
@@ -143,7 +153,7 @@ beginning
 ; -------------------
 
 scroller
-	pha 
+	pha
 	tya
 	pha
 	txa
@@ -169,7 +179,7 @@ scroller
 	;sta $0400
 	;dec $d020
 	jsr charscroll
-	jsr swap_screen
+	;jsr swap_screen
 	lda horscroll
 	;and #%11100111
 	ora #7
@@ -224,9 +234,9 @@ swap_screen
 	+setabs screen_swapped, $01
 
 	rts
-	
+
 charscroll
-	; pha 
+	; pha
 	; tya
 	; pha
 	; txa
@@ -248,15 +258,15 @@ charscroll
 +
 
 	lda screen_swapped
-	cmp #01
-	beq +
-	lda .msg, y
-	sta backbuffer + 40 * scroll_line, x
-	jmp ++
-+
+	; cmp #01
+	; beq +
+	; lda .msg, y
+	; sta backbuffer + 40 * scroll_line, x
+	; jmp ++
+; +
 	lda .msg, y
 	sta screen + 40 * scroll_line, x
-++	
+++
 
 	iny ; increment the message offset
 
@@ -289,15 +299,37 @@ grafx
 	lda #red
 	sta background
 
+	; set graphics mode
 	lda $d011
+	and #%10011111
 	ora #%00100000
 	sta $d011
+
+	; set multi-color graphics
+	lda $d016
+	ora #%00010000
+	sta $d016
+
+	; set graphics source
+	lda $d018
+	pha
+	ora #%00001000
+	sta $d018
+
+	ldy horscroll
+	+setabs horscroll, 0
 
 	ldx #255
 pause
 	dex
 	bne pause
 
+	sty horscroll
+
+	pla 
+	sta $d018
+
+	; set text-mode
 	lda $d011
 	and #%11011111
 	sta $d011
@@ -425,7 +457,7 @@ light_grey	= $0F
 }
 
 int_scroller_raster_line = $0d
-int_grafx_raster_line = $4C
+int_grafx_raster_line = $5C
 
 max_slowdown  = $01
 
