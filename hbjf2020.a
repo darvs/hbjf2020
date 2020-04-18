@@ -479,7 +479,7 @@ int_text_raster_line = 192
 max_slowdown  = $01
 
 ; some test title
-.msg !scr "                                     Ceci est un message plus court mais pas tant que ca", 0
+.msg !scr "                                     Jeffffffff!! Bonne Fete! $30 ans deja! Je te souhaite un joyeux anniversaire et j'espere que tu vas passez une excellente journee et que ca sera le debut d'une annee exceptionnellement heureuse pour toi et ta famille.", 0
 
 !src "sprites.a"
 
