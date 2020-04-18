@@ -96,10 +96,10 @@ beginning
 	+setabs sprite_3_x, ($64 + $2b + $26 + $1d)
 
 	; set sprite y positions
-	+setabs sprite_0_y, $80
-	+setabs sprite_1_y, $80
-	+setabs sprite_2_y, $80
-	+setabs sprite_3_y, $80
+	+setabs sprite_0_y, $00
+	+setabs sprite_1_y, $00
+	+setabs sprite_2_y, $00
+	+setabs sprite_3_y, $00
 
 	; set scroll color
 	ldy #0
@@ -134,6 +134,22 @@ beginning
 
 	; setup irq handler
 	jsr irq_setup
+
+
+	; jeff animation
+	ldx #0
+-
+	stx sprite_0_y
+	stx sprite_1_y
+	stx sprite_2_y
+	stx sprite_3_y
+	+sleep
+	inx
+	inx
+	cpx #$92
+	bne -
+
+
 
 	; wait for spacebar
 -
