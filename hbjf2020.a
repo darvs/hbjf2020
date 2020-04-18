@@ -30,37 +30,27 @@
 
 *=$0820
 
-	; clear screen
-	ldx #$00
--
-	lda $c000 		+ 256 * 0, x
-	sta screen	+ 256 * 0, x
-	lda $c000 		+ 256 * 1, x
-	sta screen	+ 256 * 1, x
-
-	lda $c000 		+ 256 * 2, x
-	lda #black
-	sta screen	+ 256 * 2, x
-
-	; wipe the color between the bitmap and the scroll
-
-	lda #black
-	sta color_memory	+ 256 * 2, x
-
-	inx
-	bne -				; did X overflow to zero yet?
-
-	ldx #$00
-	lda #$20
--
-	sta screen + 18 * 40, x 
-	inx
-	bne -
-
 	; set colors
 	+setimm foreground, black
 	+setimm background, dark_grey
 
+	ldx #$00
+-
+	lda #$20
+	sta screen	+ 256 * 0, x
+	sta screen	+ 256 * 1, x
+	sta screen	+ 256 * 2, x
+	sta screen	+ 256 * 2 - 18, x
+
+	lda #black
+	sta color_memory + 256 * 0, x
+	sta color_memory + 256 * 1, x
+	sta color_memory + 256 * 2, x
+	sta color_memory + 256 * 2 - 18, x
+
+	inx
+	bne -
+	
 	; switch to lowercase mode
 	+switch_lowercase
 
@@ -144,34 +134,24 @@ beginning
 
 	+setimm slowdown, max_slowdown
 
-	; setup irq handler
-	jsr irq_setup
-
 	; jeff animation
 	lda #00
 	sta sprite_0_y
-	lda #00
 	sta sprite_1_y
-	lda #10
 	sta sprite_2_y
-	lda #00
 	sta sprite_3_y
 
-
-	lda #1
+	lda #6
 	sta sprite_0_v
-	lda #2
+	lda #5
 	sta sprite_1_v
-	lda #1
+	lda #4
 	sta sprite_2_v
 	lda #3
 	sta sprite_3_v
 
 
-
-
-
-	ldy #$ff
+	ldy # 127/3 + 30
 showloop
 	+spriteshow sprite_0_y, sprite_0_v, 127
 	+spriteshow sprite_1_y, sprite_1_v, 127
@@ -186,6 +166,12 @@ showloop
 	jmp showloop
 +
 
+	; setup irq handler
+	+sleep
+	jsr irq_setup
+
+	; set color ram to the bitmap's color
+	jsr set_color_ram
 
 	; wait for spacebar
 -
@@ -198,6 +184,35 @@ showloop
 	rts
 
 
+set_color_ram
+	; clear screen
+	ldx #$00
+-
+	lda $c000 		+ 256 * 0, x
+	sta screen	+ 256 * 0, x
+	lda $c000 		+ 256 * 1, x
+	sta screen	+ 256 * 1, x
+
+	lda $c000 		+ 256 * 2, x
+	lda #black
+	sta screen	+ 256 * 2, x
+
+	; wipe the color between the bitmap and the scroll
+
+	lda #black
+	sta color_memory	+ 256 * 2, x
+
+	inx
+	bne -				; did X overflow to zero yet?
+
+	ldx #$00
+	lda #$20
+-
+	sta screen + 18 * 40, x 
+	inx
+	bne -
+
+	rts
 
 ; -------------------
 ;  irq setup
@@ -257,7 +272,7 @@ scroller
 
 
 charscroll
-	+setimm background, blue
+	;+setimm background, blue
 
 	ldy offset ; current offset in the message
 
@@ -458,13 +473,13 @@ light_grey	= $0F
 }
 
 int_scroller_raster_line = 243
-int_grafx_raster_line = 20
+int_grafx_raster_line = 30
 int_text_raster_line = 192
 
 max_slowdown  = $01
 
 ; some test title
-.msg !scr "       Ceci est un message plus court mais pas tant que ca", 0
+.msg !scr "                                     Ceci est un message plus court mais pas tant que ca", 0
 
 !src "sprites.a"
 
