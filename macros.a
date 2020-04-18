@@ -32,7 +32,7 @@
 	sta .addr
 }
 
-!macro setabs .addr, .val {
+!macro setimm .addr, .val {
 	lda #.val
 	sta .addr
 }

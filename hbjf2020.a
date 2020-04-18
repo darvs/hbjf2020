@@ -1,6 +1,78 @@
 !src "macros.a"
 !src "stub.a"
 
+!macro bounce .y, .speed, .floor {
+	pha
+	txa
+	pha
+
+	lda #.floor
+	sec
+	sbc .y
+	bpl +
+
+	lda .speed
+	bmi +
+
+	inc $d021
+	lda .speed
+	eor #$ff
+	clc
+	adc #$01
+	sta .speed
++
+
+	lda .speed
+	cmp #0
+	bne +
+	lda #.floor
+	cmp .y
+	bpl +
+	lda #1
+	sta .speed
++
+
+
+	; check sign
+	;lda .speed
+	lda .speed
+	;lsr .speed
+	;sta .speed
+	bmi +
+		; positive speed (falling)
+		;dec $d021
+		;lsr .speed
+		lda .speed
+		clc
+		adc .y
+		sta .y
+		inc .speed
+		jmp ++
++
+		; negative speed (going up)
+		;inc $d020
+		;lsr .speed
+		lda .speed
+		eor #$ff
+		clc
+		adc #$01
+		sec	
+		sbc .y
+		sta .y
+		inc .speed
+		;lda .speed
+		;ora %10000000
+		;sta .speed
+		jmp ++
+++
+	
+	pla
+	tax
+	pla
+}
+
+
+
 
 *=$2000
 !bin "background_bitmap.raw"
@@ -46,14 +118,14 @@
 	bne -
 
 	; set colors
-	+setabs foreground, black
-	+setabs background, dark_grey
+	+setimm foreground, black
+	+setimm background, dark_grey
 
 	; switch to lowercase mode
 	+switch_lowercase
 
 	; set 38 column mode
-	;+setabs horscroll, col38
+	;+setimm horscroll, col38
 	lda horscroll
 	and #%11110111
 	sta horscroll
@@ -61,7 +133,7 @@
 beginning
 
 	;enable all sprites
-	+setabs sprite_enable, $ff
+	+setimm sprite_enable, $ff
 
 	; copy sprite data to memory image data
 	+memcpy sprite_0, $2000 + 64 * 0, 64
@@ -69,37 +141,37 @@ beginning
 	+memcpy sprite_2, $2000 + 64 * 2, 64
 
 	; set the sprite pointers to our image data
-	+setabs sprite_ptr_0, ($2000 + 64 * 0) / 64 ; j
-	+setabs sprite_ptr_1, ($2000 + 64 * 1) / 64 ; e
-	+setabs sprite_ptr_2, ($2000 + 64 * 2) / 64 ; f
-	+setabs sprite_ptr_3, ($2000 + 64 * 2) / 64 ; f, same as sprite 2
+	+setimm sprite_ptr_0, ($2000 + 64 * 0) / 64 ; j
+	+setimm sprite_ptr_1, ($2000 + 64 * 1) / 64 ; e
+	+setimm sprite_ptr_2, ($2000 + 64 * 2) / 64 ; f
+	+setimm sprite_ptr_3, ($2000 + 64 * 2) / 64 ; f, same as sprite 2
 
 	; all sprites expanded 2x in x and y
-	+setabs sprite_x_expansion, 2^0 + 2^1 + 2^2 + 2^3
-	+setabs sprite_y_expansion, 2^0 + 2^1 + 2^2 + 2^3
+	+setimm sprite_x_expansion, 2^0 + 2^1 + 2^2 + 2^3
+	+setimm sprite_y_expansion, 2^0 + 2^1 + 2^2 + 2^3
 
 	; set basic sprite color
-	+setabs sprite_col_0, dark_grey
-	+setabs sprite_col_1, dark_grey
-	+setabs sprite_col_2, dark_grey
-	+setabs sprite_col_3, dark_grey
+	+setimm sprite_col_0, dark_grey
+	+setimm sprite_col_1, dark_grey
+	+setimm sprite_col_2, dark_grey
+	+setimm sprite_col_3, dark_grey
 
 	; set all sprites to multicolor
-	+setabs sprite_multi, 2^0 + 2^1 + 2^2 + 2^3
-	+setabs sprite_multicolor_2, grey
-	+setabs sprite_multicolor_1, light_grey 
+	+setimm sprite_multi, 2^0 + 2^1 + 2^2 + 2^3
+	+setimm sprite_multicolor_2, grey
+	+setimm sprite_multicolor_1, light_grey 
 
 	; set sprite x positions
-	+setabs sprite_0_x, ($64)
-	+setabs sprite_1_x, ($64 + $2b)
-	+setabs sprite_2_x, ($64 + $2b + $26)
-	+setabs sprite_3_x, ($64 + $2b + $26 + $1d)
+	+setimm sprite_0_x, ($64)
+	+setimm sprite_1_x, ($64 + $2b)
+	+setimm sprite_2_x, ($64 + $2b + $26)
+	+setimm sprite_3_x, ($64 + $2b + $26 + $1d)
 
 	; set sprite y positions
-	+setabs sprite_0_y, $00
-	+setabs sprite_1_y, $00
-	+setabs sprite_2_y, $00
-	+setabs sprite_3_y, $00
+	+setimm sprite_0_y, $00
+	+setimm sprite_1_y, $00
+	+setimm sprite_2_y, $00
+	+setimm sprite_3_y, $00
 
 	; set scroll color
 	ldy #0
@@ -122,7 +194,7 @@ beginning
 	sty strlen
 
 	; clear message offset
-	+setabs offset, $00
+	+setimm offset, $00
 
 	; initialize scroll
 	lda horscroll
@@ -130,25 +202,25 @@ beginning
 	ora #7
 	sta horscroll
 
-	+setabs slowdown, max_slowdown
+	+setimm slowdown, max_slowdown
 
 	; setup irq handler
 	jsr irq_setup
 
-
 	; jeff animation
-	ldx #0
--
-	stx sprite_0_y
-	stx sprite_1_y
-	stx sprite_2_y
-	stx sprite_3_y
-	+sleep
-	inx
-	inx
-	cpx #$92
-	bne -
+	lda #00
+	sta sprite_0_y
 
+	lda #1
+	sta sprite_0_v
+
+
+	ldy #$ff
+-
+	+bounce sprite_0_y, sprite_0_v, 127
+	+sleep
+	dey
+	bne -
 
 
 	; wait for spacebar
@@ -164,6 +236,22 @@ beginning
 
 
 ; -------------------
+;  irq setup
+; -------------------
+
+irq_setup
+	; from https://www.c64-wiki.com/wiki/Raster_interrupt
+	lda #%01111111
+	sta cia_interrupt_control_and_status
+	and screen_control_register_1
+	sta screen_control_register_1
+	+setimm interrupt_raster_line, int_grafx_raster_line
+	+set16 interrupt_vector, grafx
+	+setimm interrupt_control_register, $01
+
+	rts
+
+; -------------------
 ;  Horizontal Scroll
 ; -------------------
 
@@ -176,7 +264,7 @@ scroller
 
 	dec slowdown
 	bne ++
-	+setabs slowdown, max_slowdown
+	+setimm slowdown, max_slowdown
 
 	; scroll one pixel to the left
 	lda horscroll
@@ -190,7 +278,7 @@ scroller
 	ora #7
 	sta horscroll ; reset horscroll to 7
 ++
-	+setabs interrupt_raster_line, int_grafx_raster_line
+	+setimm interrupt_raster_line, int_grafx_raster_line
 	+set16 interrupt_vector, grafx
 
 	pla
@@ -203,20 +291,9 @@ scroller
 	jmp final_interrupt_handler
 
 
-irq_setup
-	; from https://www.c64-wiki.com/wiki/Raster_interrupt
-	lda #%01111111
-	sta cia_interrupt_control_and_status
-	and screen_control_register_1
-	sta screen_control_register_1
-	+setabs interrupt_raster_line, int_grafx_raster_line
-	+set16 interrupt_vector, grafx
-	+setabs interrupt_control_register, $01
-
-	rts
 
 charscroll
-	+setabs background, blue
+	+setimm background, blue
 
 	ldy offset ; current offset in the message
 
@@ -241,15 +318,15 @@ charscroll
 	lda offset
 	cmp strlen
 	bne +
-	+setabs offset, $00 ; wrap around message if we're at the end 
+	+setimm offset, $00 ; wrap around message if we're at the end 
 +
-	+setabs background, dark_grey
+	+setimm background, dark_grey
 
 	rts
 
 
 grafx
-	+setabs background, red
+	+setimm background, red
 
 	; set graphics mode
 	lda $d011
@@ -275,9 +352,9 @@ grafx
 
 	ldy horscroll
 	sty last_horscroll
-	+setabs horscroll, 0
+	+setimm horscroll, 0
 
-	+setabs interrupt_raster_line, int_text_raster_line
+	+setimm interrupt_raster_line, int_text_raster_line
 	+set16 interrupt_vector, textmode
 
 	asl interrupt_status_register
@@ -285,12 +362,6 @@ grafx
 
 
 textmode
-	;pla
-	;sta $d018
-	;pla
-	;sta $d016
-	;pla
-	;sta $d011
 
 	lda tmp3
 	sta $d018
@@ -304,9 +375,9 @@ textmode
 	ldy last_horscroll
 	sty horscroll
 
-	+setabs background, dark_grey
+	+setimm background, dark_grey
 
-	+setabs interrupt_raster_line, int_scroller_raster_line
+	+setimm interrupt_raster_line, int_scroller_raster_line
 	+set16 interrupt_vector, scroller
 
 	asl interrupt_status_register
@@ -415,6 +486,11 @@ light_grey	= $0F
 	tmp1 = $f9
 	tmp2 = $fa
 	tmp3 = $fb
+
+	sprite_0_v = $57
+	sprite_1_v = $58
+	sprite_2_v = $59
+	sprite_3_v = $5a
 }
 
 int_scroller_raster_line = 243
