@@ -2,7 +2,7 @@ ACME=acme
 C1541=c1541
 
 OBJ_DIR=obj
-IMG=$(OBJ_DIR)/image.d64
+IMG=$(OBJ_DIR)/hbj2020.d64
 MKDIR_P=mkdir -p
 
 ASM=hbjf2020.a
