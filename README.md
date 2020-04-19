@@ -1,7 +1,8 @@
 # Happy Birthday Jeff!
 
+![Happy Birtday Jeff!](preview_12s.gif)
 
-This is my little Commodore 64 demo for my friend Jeff's Birthday on April 18th 2020.
+This is my little Commodore 64 demo for my friend Jeff's birthday on April 18th 2020.
 
 It has been written in assembly language using the [ACME Macro Assembler](https://sourceforge.net/projects/acme-crossass/).
 
@@ -18,6 +19,7 @@ A `makefile` is included, running `make` should produce a usable `hbjf2020.d64` 
 In addition to `make` you will need the following tools:
 
 [ACME Macro Assembler](https://sourceforge.net/projects/acme-crossass/)
+
 [VICE C64 Emulator](https://vice-emu.sourceforge.io/)
 
 ACME is the cross assembler used, it will produce a `.prg` file. The `makefile` uses `c1541` from the VICE package and builds the `.d64` from that `.prg`.
